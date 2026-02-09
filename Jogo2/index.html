@@ -2,30 +2,36 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Corrida 3D - Evite os Obstáculos</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: none;
         }
         
         body {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: #000;
             color: #fff;
             overflow: hidden;
             height: 100vh;
+            width: 100vw;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
         }
         
         #gameContainer {
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            height: 100vh;
+            height: 100%;
         }
         
         #gameCanvas {
@@ -45,30 +51,76 @@
             height: 100%;
             z-index: 2;
             pointer-events: none;
-            padding: 20px;
         }
         
         .ui-panel {
-            background-color: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(5px);
-            border-radius: 15px;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
             padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.1);
             pointer-events: all;
         }
         
         #scorePanel {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 200px;
+            top: max(20px, env(safe-area-inset-top));
+            left: max(20px, env(safe-area-inset-left));
+            width: 160px;
+            padding: 15px;
         }
         
-        #controlsPanel {
+        #mobileControls {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
-            width: 300px;
+            bottom: max(20px, env(safe-area-inset-bottom));
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            gap: 20px;
+        }
+        
+        .control-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.1s;
+            -webkit-touch-callout: none;
+        }
+        
+        .control-btn:active {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0.95);
+        }
+        
+        #leftBtn {
+            margin-right: auto;
+        }
+        
+        #rightBtn {
+            margin-left: auto;
+        }
+        
+        #centerControls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        #pauseBtn, #boostBtn {
+            width: 70px;
+            height: 70px;
         }
         
         #startPanel {
@@ -76,7 +128,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 400px;
+            width: 90%;
+            max-width: 400px;
             text-align: center;
             z-index: 3;
         }
@@ -86,49 +139,49 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 400px;
+            width: 90%;
+            max-width: 400px;
             text-align: center;
             z-index: 3;
             display: none;
         }
         
         h1 {
-            font-size: 2.5rem;
+            font-size: clamp(2rem, 6vw, 2.8rem);
             margin-bottom: 10px;
             background: linear-gradient(90deg, #ff7e5f, #feb47b);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-            text-shadow: 0 0 10px rgba(255, 126, 95, 0.3);
         }
         
         h2 {
-            font-size: 1.8rem;
+            font-size: clamp(1.5rem, 4vw, 1.8rem);
             margin-bottom: 15px;
             color: #4dccbd;
         }
         
         h3 {
-            font-size: 1.5rem;
+            font-size: clamp(1.2rem, 3vw, 1.5rem);
             margin-bottom: 10px;
             color: #feb47b;
         }
         
         p {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             line-height: 1.5;
             color: #ccc;
+            font-size: clamp(0.9rem, 2.5vw, 1rem);
         }
         
         .score-display {
-            font-size: 2rem;
+            font-size: clamp(2rem, 5vw, 2.5rem);
             font-weight: bold;
             color: #4dccbd;
-            text-shadow: 0 0 10px rgba(77, 204, 189, 0.5);
         }
         
         .high-score {
-            font-size: 1.2rem;
+            font-size: clamp(1rem, 2.5vw, 1.2rem);
             color: #ff7e5f;
             margin-top: 5px;
         }
@@ -138,50 +191,29 @@
             color: white;
             border: none;
             border-radius: 50px;
-            padding: 15px 30px;
-            font-size: 1.2rem;
+            padding: clamp(12px, 3vw, 15px) clamp(25px, 5vw, 30px);
+            font-size: clamp(1rem, 3vw, 1.2rem);
             font-weight: bold;
             cursor: pointer;
-            margin: 10px;
+            margin: 8px;
             transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        }
-        
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            display: inline-block;
+            width: 100%;
+            max-width: 250px;
         }
         
         .btn:active {
-            transform: translateY(1px);
+            transform: scale(0.98);
         }
         
         .btn i {
             margin-right: 8px;
         }
         
-        .control-info {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-            color: #ccc;
-        }
-        
-        .key {
-            display: inline-block;
-            background-color: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 5px;
-            padding: 5px 10px;
-            margin-right: 10px;
-            font-family: monospace;
-            min-width: 40px;
-            text-align: center;
-        }
-        
         .difficulty-selector {
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
+            gap: 10px;
             margin: 20px 0;
         }
         
@@ -189,12 +221,11 @@
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #ccc;
-            padding: 10px 15px;
-            border-radius: 10px;
+            padding: 15px;
+            border-radius: 15px;
             cursor: pointer;
             transition: all 0.3s;
-            flex: 1;
-            margin: 0 5px;
+            font-size: clamp(0.9rem, 2.5vw, 1rem);
         }
         
         .difficulty-btn.active {
@@ -204,81 +235,158 @@
         }
         
         .obstacle-counter {
-            margin-top: 15px;
-            font-size: 1.1rem;
+            margin-top: 10px;
+            font-size: clamp(0.9rem, 2.5vw, 1rem);
             color: #feb47b;
         }
         
         #lives {
             display: flex;
             margin-top: 10px;
+            justify-content: center;
         }
         
         .life {
             color: #ff7e5f;
-            font-size: 1.5rem;
-            margin-right: 5px;
+            font-size: clamp(1.2rem, 3vw, 1.5rem);
+            margin: 0 5px;
         }
         
-        #speedometer {
+        #speedPanel {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
-            width: 200px;
+            top: max(20px, env(safe-area-inset-top));
+            right: max(20px, env(safe-area-inset-right));
+            width: 140px;
+            padding: 15px;
             text-align: center;
         }
         
         .speed-value {
-            font-size: 2.5rem;
+            font-size: clamp(1.8rem, 4vw, 2.2rem);
             font-weight: bold;
             color: #4dccbd;
-            text-shadow: 0 0 10px rgba(77, 204, 189, 0.5);
         }
         
         .speed-unit {
-            font-size: 1.2rem;
+            font-size: clamp(0.9rem, 2.5vw, 1rem);
             color: #ccc;
         }
         
-        @media (max-width: 768px) {
-            #scorePanel, #controlsPanel, #speedometer {
-                width: 90%;
-                left: 5%;
-                right: 5%;
+        .touch-hint {
+            position: absolute;
+            bottom: 120px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
+            padding: 0 20px;
+            display: none;
+        }
+        
+        .loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-top: 5px solid #ff7e5f;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (orientation: landscape) {
+            #mobileControls {
+                bottom: 10px;
+                padding: 0 10px;
             }
             
-            #scorePanel {
+            .control-btn {
+                width: 70px;
+                height: 70px;
+                font-size: 25px;
+            }
+            
+            #scorePanel, #speedPanel {
                 top: 10px;
             }
             
-            #controlsPanel {
-                bottom: 10px;
+            .touch-hint {
+                display: none !important;
+            }
+        }
+        
+        @media (max-width: 768px) and (orientation: portrait) {
+            #mobileControls {
+                bottom: max(10px, env(safe-area-inset-bottom));
             }
             
-            #startPanel, #gameOverPanel {
-                width: 90%;
+            .control-btn {
+                width: 70px;
+                height: 70px;
+                font-size: 25px;
             }
             
-            .difficulty-selector {
-                flex-direction: column;
+            .touch-hint {
+                display: block;
             }
-            
-            .difficulty-btn {
-                margin: 5px 0;
-            }
+        }
+        
+        .performance-warning {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 100;
+            display: none;
+            max-width: 90%;
         }
     </style>
 </head>
 <body>
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loader"></div>
+        <p>Carregando jogo...</p>
+    </div>
+    
+    <div class="performance-warning" id="performanceWarning">
+        <h3>⚠️ Desempenho Baixo</h3>
+        <p>O jogo está lento no seu dispositivo.</p>
+        <p>Tente fechar outros aplicativos ou reduzir a qualidade gráfica.</p>
+        <button class="btn" onclick="continueAnyway()">Continuar Mesmo Assim</button>
+    </div>
+    
     <div id="gameContainer">
         <div id="gameCanvas"></div>
         
         <div id="uiOverlay">
             <div id="scorePanel" class="ui-panel">
-                <h3>PONTUAÇÃO</h3>
+                <h3>PONTOS</h3>
                 <div class="score-display" id="score">0</div>
                 <div class="high-score">Recorde: <span id="highScore">0</span></div>
-                <div class="obstacle-counter">Obstáculos evitados: <span id="obstaclesAvoided">0</span></div>
+                <div class="obstacle-counter">Evitados: <span id="obstaclesAvoided">0</span></div>
                 <div id="lives">
                     <div class="life"><i class="fas fa-heart"></i></div>
                     <div class="life"><i class="fas fa-heart"></i></div>
@@ -286,58 +394,62 @@
                 </div>
             </div>
             
-            <div id="controlsPanel" class="ui-panel">
-                <h3>CONTROLES</h3>
-                <div class="control-info">
-                    <div class="key">A</div>
-                    <div class="key">←</div>
-                    <span>Mover para ESQUERDA</span>
-                </div>
-                <div class="control-info">
-                    <div class="key">D</div>
-                    <div class="key">→</div>
-                    <span>Mover para DIREITA</span>
-                </div>
-                <div class="control-info">
-                    <div class="key">W</div>
-                    <div class="key">↑</div>
-                    <span>Acelerar</span>
-                </div>
-                <div class="control-info">
-                    <div class="key">S</div>
-                    <div class="key">↓</div>
-                    <span>Desacelerar</span>
-                </div>
-                <div class="control-info">
-                    <div class="key">ESPAÇO</div>
-                    <span>Pausar/Continuar</span>
-                </div>
-            </div>
-            
-            <div id="speedometer" class="ui-panel">
+            <div id="speedPanel" class="ui-panel">
                 <h3>VELOCIDADE</h3>
                 <div class="speed-value" id="speed">60</div>
                 <div class="speed-unit">km/h</div>
             </div>
             
+            <div id="mobileControls">
+                <div class="control-btn" id="leftBtn">
+                    <i class="fas fa-arrow-left"></i>
+                </div>
+                
+                <div id="centerControls">
+                    <div class="control-btn" id="boostBtn">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <div class="control-btn" id="pauseBtn">
+                        <i class="fas fa-pause"></i>
+                    </div>
+                </div>
+                
+                <div class="control-btn" id="rightBtn">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+            </div>
+            
+            <div class="touch-hint" id="touchHint">
+                <i class="fas fa-hand-point-up"></i> Use os botões para controlar o carro
+            </div>
+            
             <div id="startPanel" class="ui-panel">
                 <h1><i class="fas fa-car"></i> CORRIDA 3D</h1>
                 <h2>Evite os Obstáculos</h2>
-                <p>Use as teclas de direção ou A/D para mover o carro e evitar os obstáculos na pista. Acelere com W e desacelere com S. Não bata nos obstáculos!</p>
+                <p>Desvie dos obstáculos na pista usando os controles touch. Quanto mais rápido, mais pontos!</p>
                 
                 <div class="difficulty-selector">
-                    <div class="difficulty-btn active" data-difficulty="easy">Fácil</div>
-                    <div class="difficulty-btn" data-difficulty="medium">Médio</div>
-                    <div class="difficulty-btn" data-difficulty="hard">Difícil</div>
+                    <div class="difficulty-btn active" data-difficulty="easy">
+                        <i class="fas fa-star"></i> Fácil
+                    </div>
+                    <div class="difficulty-btn" data-difficulty="medium">
+                        <i class="fas fa-star"></i><i class="fas fa-star"></i> Médio
+                    </div>
+                    <div class="difficulty-btn" data-difficulty="hard">
+                        <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> Difícil
+                    </div>
                 </div>
                 
                 <button id="startBtn" class="btn">
-                    <i class="fas fa-play"></i> INICIAR JOGO
+                    <i class="fas fa-play"></i> JOGAR AGORA
                 </button>
+                <div style="margin-top: 10px; font-size: 0.8rem; color: #888;">
+                    Otimizado para celular • Controles touch
+                </div>
             </div>
             
             <div id="gameOverPanel" class="ui-panel">
-                <h1><i class="fas fa-car-crash"></i> FIM DE JOGO</h1>
+                <h1><i class="fas fa-flag-checkered"></i> FIM DE JOGO</h1>
                 <h2 id="finalScoreTitle">Pontuação: 0</h2>
                 <p id="gameOverMessage">Você colidiu com um obstáculo!</p>
                 <button id="restartBtn" class="btn">
@@ -351,8 +463,17 @@
     </div>
 
     <script>
+        // Configurações otimizadas para mobile
+        const MOBILE_OPTIMIZATION = {
+            enableShadows: false, // Desativa sombras para melhor performance
+            antialias: window.devicePixelRatio <= 2, // Antialias apenas para telas de baixa densidade
+            pixelRatio: Math.min(window.devicePixelRatio, 2), // Limita pixel ratio para performance
+            maxObstacles: 15, // Limita número máximo de obstáculos
+            simpleGraphics: false // Usar gráficos simplificados
+        };
+
         // Variáveis do jogo
-        let scene, camera, renderer, controls;
+        let scene, camera, renderer;
         let car, road, obstacles = [];
         let gameState = 'menu'; // menu, playing, paused, gameOver
         let score = 0;
@@ -361,113 +482,144 @@
         let lives = 3;
         let speed = 60;
         let difficulty = 'easy';
-        let moveDirection = 0;
         let lastObstacleTime = 0;
-        let obstacleInterval = 1500; // ms entre obstáculos
-        let roadSegments = [];
-        let roadWidth = 20;
-        let roadLength = 200;
-        let keys = {};
+        let obstacleInterval = 1500;
+        let frames = 0;
+        let lastFpsUpdate = 0;
+        let fps = 60;
+        let lowPerformanceMode = false;
+        
+        // Controles touch
+        let touchControls = {
+            left: false,
+            right: false,
+            boost: false
+        };
         
         // Configurações de dificuldade
         const difficultySettings = {
-            easy: { speed: 60, obstacleInterval: 1500, obstacleSpeed: 0.1, lives: 3 },
-            medium: { speed: 80, obstacleInterval: 1200, obstacleSpeed: 0.15, lives: 3 },
-            hard: { speed: 100, obstacleInterval: 900, obstacleSpeed: 0.2, lives: 3 }
+            easy: { speed: 60, obstacleInterval: 1800, obstacleSpeed: 0.08, lives: 3 },
+            medium: { speed: 80, obstacleInterval: 1400, obstacleSpeed: 0.12, lives: 3 },
+            hard: { speed: 100, obstacleInterval: 1000, obstacleSpeed: 0.16, lives: 3 }
         };
         
-        // Inicialização do jogo
+        // Inicialização otimizada
         function init() {
-            // Configurar cena
-            scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x16213e, 10, 200);
+            // Verificar performance do dispositivo
+            checkPerformance();
             
-            // Configurar câmera
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 10, 15);
+            // Configurar cena simplificada
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x16213e, 10, 150);
+            
+            // Configurar câmera com ângulo melhor para mobile
+            const aspect = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+            camera.position.set(0, 8, 12);
             camera.lookAt(0, 0, -10);
             
-            // Configurar renderizador
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            // Configurar renderizador otimizado
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: MOBILE_OPTIMIZATION.antialias,
+                alpha: true,
+                powerPreference: 'high-performance'
+            });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.setPixelRatio(MOBILE_OPTIMIZATION.pixelRatio);
+            renderer.shadowMap.enabled = MOBILE_OPTIMIZATION.enableShadows;
+            renderer.shadowMap.type = THREE.BasicShadowMap;
+            
+            // Otimizações de performance
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.NoToneMapping;
+            
             document.getElementById('gameCanvas').appendChild(renderer.domElement);
             
-            // Configurar luzes
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            // Configurar luzes simplificadas
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(ambientLight);
             
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(10, 20, 5);
-            directionalLight.castShadow = true;
-            directionalLight.shadow.camera.left = -50;
-            directionalLight.shadow.camera.right = 50;
-            directionalLight.shadow.camera.top = 50;
-            directionalLight.shadow.camera.bottom = -50;
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(5, 10, 2);
+            if (MOBILE_OPTIMIZATION.enableShadows) {
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 512;
+                directionalLight.shadow.mapSize.height = 512;
+            }
             scene.add(directionalLight);
             
-            // Criar a pista
+            // Criar cena
             createRoad();
-            
-            // Criar o carro
             createCar();
             
-            // Configurar eventos
+            // Configurar controles
             setupEventListeners();
             
             // Atualizar recorde
             document.getElementById('highScore').textContent = highScore;
             
-            // Iniciar loop de animação
+            // Esconder tela de carregamento
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.display = 'none';
+            }, 500);
+            
+            // Iniciar loop otimizado
             animate();
         }
         
+        function checkPerformance() {
+            // Verificar se é um dispositivo móvel
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+            if (isMobile) {
+                // Ajustar configurações para mobile
+                MOBILE_OPTIMIZATION.simpleGraphics = true;
+                MOBILE_OPTIMIZATION.maxObstacles = 10;
+                
+                // Verificar memória disponível
+                const memory = performance.memory;
+                if (memory && memory.jsHeapSizeLimit < 1073741824) { // Menos de 1GB
+                    MOBILE_OPTIMIZATION.enableShadows = false;
+                    MOBILE_OPTIMIZATION.antialias = false;
+                }
+            }
+        }
+        
         function createRoad() {
-            // Criar pista principal
-            const roadGeometry = new THREE.PlaneGeometry(roadWidth, roadLength);
-            const roadMaterial = new THREE.MeshPhongMaterial({ 
-                color: 0x333333,
-                side: THREE.DoubleSide
+            // Pista simplificada
+            const roadGeometry = new THREE.PlaneGeometry(20, 200);
+            const roadMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x333333
             });
             road = new THREE.Mesh(roadGeometry, roadMaterial);
             road.rotation.x = Math.PI / 2;
             road.position.y = -0.5;
-            road.receiveShadow = true;
             scene.add(road);
             
-            // Adicionar marcações na pista
-            for (let i = 0; i < 20; i++) {
-                const lineGeometry = new THREE.PlaneGeometry(0.5, 2);
-                const lineMaterial = new THREE.MeshPhongMaterial({ color: 0xffff00 });
+            // Linhas da pista (simplificadas)
+            for (let i = 0; i < 15; i++) {
+                const lineGeometry = new THREE.PlaneGeometry(0.5, 3);
+                const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
                 const line = new THREE.Mesh(lineGeometry, lineMaterial);
                 line.rotation.x = Math.PI / 2;
-                line.position.set(0, -0.4, -i * 10);
+                line.position.set(0, -0.4, -i * 15);
                 scene.add(line);
             }
             
-            // Adicionar laterais da pista
-            const sideGeometry = new THREE.BoxGeometry(2, 1, roadLength);
-            const sideMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
+            // Laterais da pista
+            const sideMaterial = new THREE.MeshBasicMaterial({ color: 0x666666 });
             
-            const leftSide = new THREE.Mesh(sideGeometry, sideMaterial);
-            leftSide.position.set(-roadWidth/2 - 1, 0, 0);
+            const leftSideGeometry = new THREE.BoxGeometry(2, 1, 200);
+            const leftSide = new THREE.Mesh(leftSideGeometry, sideMaterial);
+            leftSide.position.set(-11, 0, 0);
             scene.add(leftSide);
             
-            const rightSide = new THREE.Mesh(sideGeometry, sideMaterial);
-            rightSide.position.set(roadWidth/2 + 1, 0, 0);
+            const rightSide = new THREE.Mesh(leftSideGeometry, sideMaterial);
+            rightSide.position.set(11, 0, 0);
             scene.add(rightSide);
             
-            // Adicionar grama
-            const grassGeometry = new THREE.PlaneGeometry(100, roadLength);
-            const grassMaterial = new THREE.MeshPhongMaterial({ color: 0x2d5a27 });
-            const grass = new THREE.Mesh(grassGeometry, grassMaterial);
-            grass.rotation.x = Math.PI / 2;
-            grass.position.y = -0.51;
-            scene.add(grass);
-            
-            // Adicionar céu
-            const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
+            // Céu simplificado
+            const skyGeometry = new THREE.SphereGeometry(300, 16, 16);
             const skyMaterial = new THREE.MeshBasicMaterial({ 
                 color: 0x87CEEB,
                 side: THREE.BackSide
@@ -479,60 +631,41 @@
         function createCar() {
             const carGroup = new THREE.Group();
             
-            // Corpo do carro
-            const carBodyGeometry = new THREE.BoxGeometry(3, 1, 5);
-            const carBodyMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444 });
+            // Corpo do carro (simplificado)
+            const carBodyGeometry = new THREE.BoxGeometry(2.5, 0.8, 4);
+            const carBodyMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xff4444,
+                shininess: 30
+            });
             const carBody = new THREE.Mesh(carBodyGeometry, carBodyMaterial);
-            carBody.position.y = 0.5;
-            carBody.castShadow = true;
+            carBody.position.y = 0.4;
             carGroup.add(carBody);
             
-            // Teto do carro
-            const carTopGeometry = new THREE.BoxGeometry(2, 0.8, 3);
+            // Teto
+            const carTopGeometry = new THREE.BoxGeometry(1.8, 0.6, 2.5);
             const carTopMaterial = new THREE.MeshPhongMaterial({ color: 0xff6666 });
             const carTop = new THREE.Mesh(carTopGeometry, carTopMaterial);
-            carTop.position.y = 1.4;
-            carTop.position.z = -0.5;
-            carTop.castShadow = true;
+            carTop.position.y = 1.1;
+            carTop.position.z = -0.3;
             carGroup.add(carTop);
             
-            // Rodas
-            const wheelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16);
+            // Rodas simplificadas
+            const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.2, 8);
             const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x222222 });
             
-            for (let i = 0; i < 4; i++) {
+            const wheelPositions = [
+                [-1.3, 0.2, -1.2],
+                [-1.3, 0.2, 1.2],
+                [1.3, 0.2, -1.2],
+                [1.3, 0.2, 1.2]
+            ];
+            
+            wheelPositions.forEach(pos => {
                 const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
                 wheel.rotation.z = Math.PI / 2;
-                wheel.castShadow = true;
-                
-                if (i < 2) {
-                    wheel.position.x = -1.5;
-                    wheel.position.y = 0.2;
-                } else {
-                    wheel.position.x = 1.5;
-                    wheel.position.y = 0.2;
-                }
-                
-                if (i % 2 === 0) {
-                    wheel.position.z = -1.5;
-                } else {
-                    wheel.position.z = 1.5;
-                }
-                
+                wheel.position.set(...pos);
                 carGroup.add(wheel);
-            }
-            
-            // Faróis
-            const headlightGeometry = new THREE.SphereGeometry(0.2, 16, 16);
-            const headlightMaterial = new THREE.MeshPhongMaterial({ color: 0xffffcc, emissive: 0xffffcc });
-            
-            const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
-            leftHeadlight.position.set(-1, 0.5, 2.6);
-            carGroup.add(leftHeadlight);
-            
-            const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
-            rightHeadlight.position.set(1, 0.5, 2.6);
-            carGroup.add(rightHeadlight);
+            });
             
             carGroup.position.y = 0.5;
             scene.add(carGroup);
@@ -540,127 +673,145 @@
         }
         
         function createObstacle() {
-            const obstacleTypes = ['cone', 'barrel', 'box'];
+            // Limitar número de obstáculos para performance
+            if (obstacles.length >= MOBILE_OPTIMIZATION.maxObstacles) return;
+            
+            const obstacleTypes = MOBILE_OPTIMIZATION.simpleGraphics 
+                ? ['box'] 
+                : ['cone', 'box'];
             const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
             
             let obstacle;
             
             if (type === 'cone') {
-                const geometry = new THREE.ConeGeometry(0.8, 2, 8);
+                const geometry = new THREE.ConeGeometry(0.6, 1.5, 4);
                 const material = new THREE.MeshPhongMaterial({ color: 0xffaa00 });
                 obstacle = new THREE.Mesh(geometry, material);
-            } else if (type === 'barrel') {
-                const geometry = new THREE.CylinderGeometry(0.8, 0.8, 1.5, 16);
-                const material = new THREE.MeshPhongMaterial({ color: 0xaa5500 });
-                obstacle = new THREE.Mesh(geometry, material);
+                obstacle.position.y = 0.75;
             } else {
-                const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+                const geometry = new THREE.BoxGeometry(1.2, 1.2, 1.2);
                 const material = new THREE.MeshPhongMaterial({ color: 0x6666ff });
                 obstacle = new THREE.Mesh(geometry, material);
+                obstacle.position.y = 0.6;
             }
             
-            // Posicionar obstáculo aleatoriamente na pista
+            // Posições das pistas
             const lanePositions = [-5, 0, 5];
             const lane = lanePositions[Math.floor(Math.random() * lanePositions.length)];
             
             obstacle.position.x = lane;
-            obstacle.position.z = -50; // Começa longe da vista
-            obstacle.position.y = type === 'cone' ? 1 : 0.75;
+            obstacle.position.z = -50;
             
-            obstacle.castShadow = true;
-            obstacle.userData = { type, speed: difficultySettings[difficulty].obstacleSpeed };
+            obstacle.userData = { 
+                type, 
+                speed: difficultySettings[difficulty].obstacleSpeed 
+            };
             
             scene.add(obstacle);
             obstacles.push(obstacle);
-            
-            // Adicionar partículas brilhantes ao redor do obstáculo
-            const particleCount = 5;
-            for (let i = 0; i < particleCount; i++) {
-                const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8);
-                const particleMaterial = new THREE.MeshBasicMaterial({ 
-                    color: type === 'cone' ? 0xffff00 : type === 'barrel' ? 0xff6600 : 0x6666ff,
-                    transparent: true,
-                    opacity: 0.7
-                });
-                const particle = new THREE.Mesh(particleGeometry, particleMaterial);
-                
-                // Posicionar partícula aleatoriamente ao redor do obstáculo
-                const angle = Math.random() * Math.PI * 2;
-                const radius = 1.5;
-                particle.position.x = obstacle.position.x + Math.cos(angle) * radius;
-                particle.position.y = obstacle.position.y + 0.5 + Math.random();
-                particle.position.z = obstacle.position.z + Math.sin(angle) * radius;
-                
-                particle.userData = { originalY: particle.position.y, time: Math.random() * Math.PI * 2 };
-                obstacle.userData.particles = obstacle.userData.particles || [];
-                obstacle.userData.particles.push(particle);
-                scene.add(particle);
-            }
         }
         
         function setupEventListeners() {
-            // Controles de teclado
-            window.addEventListener('keydown', (e) => {
-                keys[e.key.toLowerCase()] = true;
-                
-                // Pausar com espaço
-                if (e.key === ' ' && gameState === 'playing') {
-                    togglePause();
-                }
-                
-                // Prevenir comportamento padrão para teclas de jogo
-                if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'a', 'd', 'w', 's', ' '].includes(e.key.toLowerCase())) {
+            // Controles touch
+            const leftBtn = document.getElementById('leftBtn');
+            const rightBtn = document.getElementById('rightBtn');
+            const boostBtn = document.getElementById('boostBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+            
+            // Eventos de toque para botões
+            function addButtonEvents(btn, control) {
+                btn.addEventListener('touchstart', (e) => {
                     e.preventDefault();
-                }
+                    touchControls[control] = true;
+                    btn.style.background = 'rgba(255, 255, 255, 0.3)';
+                });
+                
+                btn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    touchControls[control] = false;
+                    btn.style.background = 'rgba(255, 255, 255, 0.15)';
+                });
+                
+                btn.addEventListener('touchcancel', (e) => {
+                    e.preventDefault();
+                    touchControls[control] = false;
+                    btn.style.background = 'rgba(255, 255, 255, 0.15)';
+                });
+                
+                // Suporte a mouse também
+                btn.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    touchControls[control] = true;
+                    btn.style.background = 'rgba(255, 255, 255, 0.3)';
+                });
+                
+                btn.addEventListener('mouseup', (e) => {
+                    e.preventDefault();
+                    touchControls[control] = false;
+                    btn.style.background = 'rgba(255, 255, 255, 0.15)';
+                });
+                
+                btn.addEventListener('mouseleave', (e) => {
+                    e.preventDefault();
+                    touchControls[control] = false;
+                    btn.style.background = 'rgba(255, 255, 255, 0.15)';
+                });
+            }
+            
+            addButtonEvents(leftBtn, 'left');
+            addButtonEvents(rightBtn, 'right');
+            addButtonEvents(boostBtn, 'boost');
+            
+            // Botão de pausa
+            pauseBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                togglePause();
             });
             
-            window.addEventListener('keyup', (e) => {
-                keys[e.key.toLowerCase()] = false;
+            pauseBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                togglePause();
             });
             
-            // Controles de toque para dispositivos móveis
+            // Controles de gesto (swipe)
             let touchStartX = 0;
             let touchStartY = 0;
+            let touchEndX = 0;
+            let touchEndY = 0;
             
             document.addEventListener('touchstart', (e) => {
+                if (gameState !== 'playing') return;
+                
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
-                e.preventDefault();
-            }, { passive: false });
+            }, { passive: true });
             
             document.addEventListener('touchmove', (e) => {
                 if (gameState !== 'playing') return;
                 
-                const touchX = e.touches[0].clientX;
-                const touchY = e.touches[0].clientY;
+                touchEndX = e.touches[0].clientX;
+                touchEndY = e.touches[0].clientY;
                 
-                // Calcular diferença do toque
-                const diffX = touchX - touchStartX;
-                const diffY = touchStartY - touchY; // Inverter para cima = positivo
-                
-                // Mover carro baseado no deslize horizontal
-                if (Math.abs(diffX) > 10) {
-                    moveDirection = Math.sign(diffX) * 0.5;
+                // Swipe horizontal para movimento rápido
+                const diffX = touchEndX - touchStartX;
+                if (Math.abs(diffX) > 50) {
+                    car.position.x += Math.sign(diffX) * 2;
+                    car.position.x = Math.max(-8, Math.min(8, car.position.x));
+                    touchStartX = touchEndX; // Reset para movimento contínuo
                 }
-                
-                // Ajustar velocidade baseado no deslize vertical
-                if (Math.abs(diffY) > 10) {
-                    speed = Math.min(150, Math.max(30, speed + diffY * 0.1));
-                }
-                
-                e.preventDefault();
-            }, { passive: false });
+            }, { passive: true });
             
-            document.addEventListener('touchend', () => {
-                moveDirection = 0;
+            // Prevenir zoom da página
+            document.addEventListener('gesturestart', (e) => {
+                e.preventDefault();
             });
             
-            // Botões da interface
+            // Botões do jogo
             document.getElementById('startBtn').addEventListener('click', startGame);
             document.getElementById('restartBtn').addEventListener('click', restartGame);
             document.getElementById('menuBtn').addEventListener('click', backToMenu);
             
-            // Seletores de dificuldade
+            // Dificuldade
             document.querySelectorAll('.difficulty-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
@@ -669,8 +820,25 @@
                 });
             });
             
-            // Ajustar tamanho da tela
+            // Ajustar redimensionamento
             window.addEventListener('resize', onWindowResize);
+            window.addEventListener('orientationchange', () => {
+                setTimeout(onWindowResize, 100);
+            });
+            
+            // Prevenir menu de contexto no toque longo
+            document.addEventListener('contextmenu', (e) => {
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                }
+            });
+            
+            // Gerenciar estado do jogo quando a página perde foco
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden && gameState === 'playing') {
+                    togglePause();
+                }
+            });
         }
         
         function startGame() {
@@ -681,23 +849,33 @@
             lives = difficultySettings[difficulty].lives;
             obstacleInterval = difficultySettings[difficulty].obstacleInterval;
             
-            // Remover obstáculos antigos
+            // Limpar obstáculos antigos
             obstacles.forEach(obstacle => {
-                if (obstacle.userData.particles) {
-                    obstacle.userData.particles.forEach(particle => scene.remove(particle));
-                }
                 scene.remove(obstacle);
             });
             obstacles = [];
             
-            // Reposicionar carro
-            car.position.x = 0;
+            // Resetar posição do carro
+            if (car) {
+                car.position.x = 0;
+                car.rotation.z = 0;
+            }
             
             // Atualizar UI
             document.getElementById('startPanel').style.display = 'none';
             document.getElementById('gameOverPanel').style.display = 'none';
             updateLivesDisplay();
             updateScore();
+            
+            // Mostrar dica touch apenas na primeira vez
+            const isFirstPlay = !localStorage.getItem('playedBefore');
+            if (isFirstPlay) {
+                document.getElementById('touchHint').style.display = 'block';
+                setTimeout(() => {
+                    document.getElementById('touchHint').style.display = 'none';
+                }, 5000);
+                localStorage.setItem('playedBefore', 'true');
+            }
         }
         
         function restartGame() {
@@ -713,8 +891,10 @@
         function togglePause() {
             if (gameState === 'playing') {
                 gameState = 'paused';
+                document.getElementById('pauseBtn').innerHTML = '<i class="fas fa-play"></i>';
             } else if (gameState === 'paused') {
                 gameState = 'playing';
+                document.getElementById('pauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
             }
         }
         
@@ -725,11 +905,7 @@
             for (let i = 0; i < 3; i++) {
                 const life = document.createElement('div');
                 life.className = 'life';
-                if (i < lives) {
-                    life.innerHTML = '<i class="fas fa-heart"></i>';
-                } else {
-                    life.innerHTML = '<i class="far fa-heart"></i>';
-                }
+                life.innerHTML = i < lives ? '<i class="fas fa-heart"></i>' : '<i class="far fa-heart"></i>';
                 livesElement.appendChild(life);
             }
         }
@@ -750,7 +926,7 @@
                 document.getElementById('highScore').textContent = highScore;
             }
             
-            // Atualizar painel de fim de jogo
+            // Atualizar painel
             document.getElementById('finalScoreTitle').textContent = `Pontuação: ${score}`;
             document.getElementById('gameOverMessage').textContent = 
                 lives <= 0 ? "Você perdeu todas as vidas!" : "Você colidiu com um obstáculo!";
@@ -760,34 +936,34 @@
         function updateGame(deltaTime) {
             if (gameState !== 'playing') return;
             
-            // Atualizar velocidade baseada nas teclas pressionadas
-            if (keys['arrowup'] || keys['w']) {
-                speed = Math.min(150, speed + 0.1);
-            }
-            if (keys['arrowdown'] || keys['s']) {
-                speed = Math.max(30, speed - 0.2);
-            }
-            
-            // Movimento lateral do carro
-            if (keys['arrowleft'] || keys['a']) {
-                moveDirection = -0.5;
-            } else if (keys['arrowright'] || keys['d']) {
-                moveDirection = 0.5;
-            } else if (!keys['arrowleft'] && !keys['a'] && !keys['arrowright'] && !keys['d']) {
-                // Reduzir movimento gradualmente quando nenhuma tecla está pressionada
-                moveDirection *= 0.9;
-                if (Math.abs(moveDirection) < 0.01) moveDirection = 0;
+            // Controles touch
+            if (touchControls.left) {
+                car.position.x -= 0.3;
+                car.rotation.z = 0.1;
+            } else if (touchControls.right) {
+                car.position.x += 0.3;
+                car.rotation.z = -0.1;
+            } else {
+                // Retornar gradualmente ao centro
+                car.rotation.z *= 0.9;
+                if (Math.abs(car.rotation.z) < 0.01) car.rotation.z = 0;
+                
+                // Suavizar movimento
+                car.position.x += (0 - car.position.x) * 0.1;
             }
             
-            // Aplicar movimento ao carro
-            car.position.x += moveDirection;
-            car.position.x = Math.max(-7, Math.min(7, car.position.x));
+            // Limitar movimento
+            car.position.x = Math.max(-8, Math.min(8, car.position.x));
             
-            // Adicionar inclinação ao carro ao virar
-            car.rotation.z = -moveDirection * 0.1;
+            // Controle de velocidade
+            if (touchControls.boost) {
+                speed = Math.min(150, speed + 0.2);
+            } else {
+                speed = Math.max(difficultySettings[difficulty].speed, speed - 0.1);
+            }
             
-            // Atualizar câmera para seguir o carro
-            camera.position.x += (car.position.x - camera.position.x) * 0.05;
+            // Atualizar câmera
+            camera.position.x += (car.position.x * 0.5 - camera.position.x) * 0.05;
             camera.position.z = car.position.z + 15;
             
             // Gerar obstáculos
@@ -796,9 +972,9 @@
                 createObstacle();
                 lastObstacleTime = currentTime;
                 
-                // Aumentar dificuldade com o tempo
+                // Aumentar dificuldade gradualmente
                 if (obstacleInterval > 500) {
-                    obstacleInterval -= 1;
+                    obstacleInterval -= 5;
                 }
             }
             
@@ -806,90 +982,113 @@
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 const obstacle = obstacles[i];
                 
-                // Mover obstáculo em direção ao carro
+                // Mover obstáculo
                 obstacle.position.z += speed * 0.02;
                 
-                // Atualizar partículas
-                if (obstacle.userData.particles) {
-                    obstacle.userData.particles.forEach(particle => {
-                        particle.userData.time += deltaTime * 2;
-                        particle.position.y = particle.userData.originalY + Math.sin(particle.userData.time) * 0.3;
-                        particle.position.z = obstacle.position.z;
-                    });
-                }
-                
                 // Verificar colisão
-                const distance = Math.sqrt(
-                    Math.pow(car.position.x - obstacle.position.x, 2) + 
-                    Math.pow(car.position.z - obstacle.position.z, 2)
-                );
+                const dx = car.position.x - obstacle.position.x;
+                const dz = car.position.z - obstacle.position.z;
+                const distance = Math.sqrt(dx * dx + dz * dz);
                 
-                if (distance < 2.5) {
-                    // Colisão detectada
+                if (distance < 2) {
+                    // Colisão
                     lives--;
                     updateLivesDisplay();
                     
-                    // Remover obstáculo
-                    if (obstacle.userData.particles) {
-                        obstacle.userData.particles.forEach(particle => scene.remove(particle));
-                    }
-                    scene.remove(obstacle);
-                    obstacles.splice(i, 1);
-                    
-                    // Efeito de colisão (piscar tela)
+                    // Efeito visual
                     document.body.style.backgroundColor = '#ff4444';
                     setTimeout(() => {
-                        document.body.style.backgroundColor = '';
+                        document.body.style.backgroundColor = '#000';
                     }, 100);
+                    
+                    // Remover obstáculo
+                    scene.remove(obstacle);
+                    obstacles.splice(i, 1);
                     
                     if (lives <= 0) {
                         gameOver();
                     }
                 }
                 
-                // Remover obstáculos que passaram do carro
+                // Remover obstáculos que passaram
                 if (obstacle.position.z > 20) {
-                    // Aumentar pontuação por evitar obstáculo
                     if (obstacle.position.z > 15) {
                         score += 10;
                         obstaclesAvoided++;
                         updateScore();
                     }
                     
-                    // Remover obstáculo
-                    if (obstacle.userData.particles) {
-                        obstacle.userData.particles.forEach(particle => scene.remove(particle));
-                    }
                     scene.remove(obstacle);
                     obstacles.splice(i, 1);
                 }
             }
             
-            // Atualizar pontuação baseada na velocidade
-            score += Math.floor(speed / 10);
+            // Pontuação contínua
+            score += Math.floor(speed / 20);
             updateScore();
+            
+            // Monitorar performance
+            frames++;
+            if (currentTime - lastFpsUpdate > 1000) {
+                fps = Math.round(frames * 1000 / (currentTime - lastFpsUpdate));
+                frames = 0;
+                lastFpsUpdate = currentTime;
+                
+                // Ativar modo de baixa performance se FPS estiver baixo
+                if (fps < 30 && !lowPerformanceMode && gameState === 'playing') {
+                    enableLowPerformanceMode();
+                }
+            }
+        }
+        
+        function enableLowPerformanceMode() {
+            lowPerformanceMode = true;
+            MOBILE_OPTIMIZATION.simpleGraphics = true;
+            MOBILE_OPTIMIZATION.maxObstacles = 8;
+            
+            // Mostrar aviso
+            document.getElementById('performanceWarning').style.display = 'block';
+        }
+        
+        function continueAnyway() {
+            document.getElementById('performanceWarning').style.display = 'none';
         }
         
         function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            // Aguardar um pouco para garantir que a orientação mudou
+            setTimeout(() => {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+                renderer.setSize(width, height);
+                
+                // Ajustar posição da câmera para landscape
+                if (width > height) {
+                    camera.position.y = 6;
+                    camera.position.z = 10;
+                } else {
+                    camera.position.y = 8;
+                    camera.position.z = 12;
+                }
+            }, 100);
         }
         
-        // Loop de animação
-        let lastTime = 0;
-        function animate(currentTime = 0) {
+        // Loop de animação otimizado
+        let lastTime = performance.now();
+        function animate(currentTime = performance.now()) {
             requestAnimationFrame(animate);
             
-            const deltaTime = (currentTime - lastTime) / 1000;
+            const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.1);
             lastTime = currentTime;
             
             updateGame(deltaTime);
             
-            // Animar rodas do carro
-            if (car) {
+            // Animar rodas
+            if (car && gameState === 'playing') {
                 car.children.forEach(child => {
-                    if (child.type === 'Mesh' && child.geometry.type === 'CylinderGeometry') {
+                    if (child.geometry && child.geometry.type === 'CylinderGeometry') {
                         child.rotation.x += speed * 0.01;
                     }
                 });
@@ -898,8 +1097,31 @@
             renderer.render(scene, camera);
         }
         
-        // Iniciar o jogo quando a página carregar
-        window.addEventListener('load', init);
+        // Iniciar quando a página carregar
+        window.addEventListener('load', () => {
+            // Verificar se Three.js está carregado
+            if (typeof THREE === 'undefined') {
+                document.getElementById('loadingScreen').innerHTML = 
+                    '<h3>Erro ao carregar o jogo</h3><p>Por favor, verifique sua conexão com a internet.</p>';
+                return;
+            }
+            
+            init();
+        });
+        
+        // Prevenir comportamento padrão do touch
+        document.addEventListener('touchmove', (e) => {
+            if (gameState === 'playing') {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        // Adicionar shortcut para recarregar (útil para desenvolvimento)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' && e.ctrlKey) {
+                location.reload();
+            }
+        });
     </script>
 </body>
 </html>
