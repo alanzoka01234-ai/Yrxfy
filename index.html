@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Car Dodge 3D</title>
+  <style>
+    html, body { margin:0; height:100%; overflow:hidden; background:#070912; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    canvas { display:block; }
+
+    /* HUD */
+    .hud {
+      position: fixed; left: 12px; top: 12px; z-index: 10;
+      color: #eaf0ff; text-shadow: 0 2px 12px rgba(0,0,0,.6);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 10px 12px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      min-width: 180px;
+    }
+    .hud .row { display:flex; justify-content:space-between; gap:10px; font-size: 14px; }
+    .hud .big { font-size: 18px; font-weight: 700; margin-top: 6px; }
+    .hint { opacity: .9; font-size: 12px; margin-top: 6px; line-height: 1.25; }
+
+    /* Mobile controls */
+    .controls {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      display: none; z-index: 10;
+      padding: 16px 14px calc(18px + env(safe-area-inset-bottom));
+      pointer-events: none;
+    }
+    .controls .bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      pointer-events: auto;
+    }
+    .btn {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      border-radius: 18px;
+      padding: 16px 10px;
+      text-align: center;
+      font-weight: 700;
+      color: #f4f7ff;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+    }
+    .btn:active { transform: translateY(1px) scale(0.99); background: rgba(255,255,255,0.12); }
+    .btn small { display:block; font-weight: 600; opacity: .85; margin-top: 4px; }
+
+    /* Overlay (start / game over) */
+    .overlay {
+      position: fixed; inset: 0; z-index: 20;
+      display:flex; align-items:center; justify-content:center;
+      background: radial-gradient(1200px 700px at 50% 40%, rgba(130,160,255,0.18), rgba(0,0,0,0.72));
+      color: #eef3ff;
+      padding: 24px;
+    }
+    .card {
+      width: min(560px, 92vw);
+      border-radius: 24px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 30px 90px rgba(0,0,0,.55);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 18px;
+    }
+    .card h1 { margin: 4px 0 8px; font-size: 22px; }
+    .card p { margin: 10px 0; opacity: .95; line-height: 1.35; }
+    .pill {
+      display:inline-block; padding: 6px 10px; border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      font-size: 12px; margin-right: 8px;
+    }
+    .cta {
+      margin-top: 14px;
+      display:flex; gap: 10px; flex-wrap: wrap;
+    }
+    .cta button {
+      border: 0; border-radius: 16px; padding: 12px 14px;
+      font-weight: 800; cursor:pointer;
+      background: linear-gradient(135deg, rgba(140,170,255,0.95), rgba(90,230,255,0.92));
+      color: #081020;
+      box-shadow: 0 16px 40px rgba(20,120,255,.25);
+    }
+    .cta button.secondary{
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.14);
+      color: #f4f7ff;
+      box-shadow: none;
+    }
+    .footerNote { margin-top: 10px; font-size: 12px; opacity: .9; }
+
+    @media (pointer: coarse) {
+      .controls { display:block; }
+    }
+  </style>
+</head>
+<body>
+  <div class="hud" id="hud">
+    <div class="row"><span>Score</span><strong id="score">0</strong></div>
+    <div class="row"><span>Velocidade</span><strong id="speed">0</strong></div>
+    <div class="big" id="status">Pronto</div>
+    <div class="hint">PC: ← → ou A/D • Espaço: turbo<br/>Celular: botões • (opção) inclinar</div>
+  </div>
+
+  <div class="controls" aria-hidden="true">
+    <div class="bar">
+      <div class="btn" id="btnLeft">←<small>Esq</small></div>
+      <div class="btn" id="btnTurbo">⟡<small>Turbo</small></div>
+      <div class="btn" id="btnRight">→<small>Dir</small></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="card">
+      <div>
+        <span class="pill">3D • Three.js</span>
+        <span class="pill">Desvie dos obstáculos</span>
+        <span class="pill">PC + Celular</span>
+      </div>
+      <h1>Car Dodge 3D</h1>
+      <p>
+        Desvie dos blocos na estrada. Quanto mais tempo você sobreviver,
+        mais rápido fica.
+      </p>
+      <p style="margin-top:12px">
+        <strong>Controles:</strong><br/>
+        PC: <b>A/D</b> ou <b>←/→</b> • <b>Espaço</b> = Turbo<br/>
+        Celular: botões na tela • <b>Inclinar</b> (se permitir)
+      </p>
+      <div class="cta">
+        <button id="playBtn">Jogar</button>
+        <button class="secondary" id="tiltBtn">Ativar inclinar (celular)</button>
+      </div>
+      <div class="footerNote" id="bestNote"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+
+    // ---------- Basic setup ----------
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x070912, 10, 85);
+
+    const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 200);
+    camera.position.set(0, 4.2, 10);
+
+    // ---------- Lights ----------
+    const hemi = new THREE.HemisphereLight(0x9fb6ff, 0x0b1020, 0.9);
+    scene.add(hemi);
+
+    const keyLight = new THREE.DirectionalLight(0x99ccff, 1.15);
+    keyLight.position.set(6, 10, 6);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(1024, 1024);
+    keyLight.shadow.camera.left = -18;
+    keyLight.shadow.camera.right = 18;
+    keyLight.shadow.camera.top = 18;
+    keyLight.shadow.camera.bottom = -18;
+    scene.add(keyLight);
+
+    const rim = new THREE.PointLight(0x66ffee, 1.0, 45, 2);
+    rim.position.set(-6, 4, -8);
+    scene.add(rim);
+
+    // ---------- Ground / Road ----------
+    const roadGroup = new THREE.Group();
+    scene.add(roadGroup);
+
+    // Road material with subtle shine
+    const roadMat = new THREE.MeshStandardMaterial({
+      color: 0x0d1530,
+      roughness: 0.55,
+      metalness: 0.15,
+      emissive: 0x02040b,
+      emissiveIntensity: 0.35
+    });
+
+    const roadGeo = new THREE.BoxGeometry(10, 0.4, 24);
+    const roadPieces = [];
+    for (let i = 0; i < 5; i++) {
+      const road = new THREE.Mesh(roadGeo, roadMat);
+      road.position.set(0, -0.6, -i * 24);
+      road.receiveShadow = true;
+      roadGroup.add(road);
+      roadPieces.push(road);
+    }
+
+    // Lane lights
+    const laneLights = new THREE.Group();
+    scene.add(laneLights);
+
+    const laneLightMat = new THREE.MeshStandardMaterial({
+      color: 0x77a6ff,
+      emissive: 0x77a6ff,
+      emissiveIntensity: 1.0,
+      roughness: 0.6,
+      metalness: 0.0
+    });
+
+    const laneLightGeo = new THREE.CapsuleGeometry(0.06, 0.25, 6, 12);
+    const laneLightZSpacing = 2.0;
+
+    const laneLeftX = -4.7, laneRightX = 4.7;
+    const laneLightCount = 40;
+    const laneLightMeshes = [];
+    for (let i = 0; i < laneLightCount; i++) {
+      const left = new THREE.Mesh(laneLightGeo, laneLightMat);
+      left.position.set(laneLeftX, -0.35, -i * laneLightZSpacing);
+      left.rotation.x = Math.PI / 2;
+      left.castShadow = false;
+
+      const right = new THREE.Mesh(laneLightGeo, laneLightMat);
+      right.position.set(laneRightX, -0.35, -i * laneLightZSpacing);
+      right.rotation.x = Math.PI / 2;
+      right.castShadow = false;
+
+      laneLights.add(left, right);
+      laneLightMeshes.push(left, right);
+    }
+
+    // Background stars (cheap particles)
+    const starsGeo = new THREE.BufferGeometry();
+    const starCount = 800;
+    const starPos = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      starPos[i*3+0] = (Math.random() - 0.5) * 140;
+      starPos[i*3+1] = Math.random() * 60 + 6;
+      starPos[i*3+2] = -Math.random() * 140;
+    }
+    starsGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
+    const starsMat = new THREE.PointsMaterial({ size: 0.06, transparent: true, opacity: 0.8 });
+    const stars = new THREE.Points(starsGeo, starsMat);
+    scene.add(stars);
+
+    // ---------- Player car ----------
+    const car = new THREE.Group();
+    scene.add(car);
+
+    // Body
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0x2c6bff, roughness: 0.35, metalness: 0.65,
+      emissive: 0x071235, emissiveIntensity: 0.25
+    });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.45, 2.2), bodyMat);
+    body.position.y = 0.1;
+    body.castShadow = true;
+    car.add(body);
+
+    // Cabin
+    const cabinMat = new THREE.MeshStandardMaterial({
+      color: 0x111a2e, roughness: 0.15, metalness: 0.2,
+      emissive: 0x0b1a2a, emissiveIntensity: 0.6
+    });
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.38, 1.0), cabinMat);
+    cabin.position.set(0, 0.45, -0.15);
+    cabin.castShadow = true;
+    car.add(cabin);
+
+    // Wheels
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x070a12, roughness: 0.9, metalness: 0.0 });
+    const wheelGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.18, 18);
+    function wheel(x, z) {
+      const w = new THREE.Mesh(wheelGeo, wheelMat);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(x, -0.05, z);
+      w.castShadow = true;
+      car.add(w);
+      return w;
+    }
+    const w1 = wheel(-0.55,  0.75);
+    const w2 = wheel( 0.55,  0.75);
+    const w3 = wheel(-0.55, -0.75);
+    const w4 = wheel( 0.55, -0.75);
+
+    // Underglow
+    const underMat = new THREE.MeshStandardMaterial({
+      color: 0x00ffd0, emissive: 0x00ffd0, emissiveIntensity: 1.2,
+      transparent: true, opacity: 0.35, roughness: 0.6, metalness: 0.0
+    });
+    const under = new THREE.Mesh(new THREE.CircleGeometry(0.9, 24), underMat);
+    under.rotation.x = -Math.PI / 2;
+    under.position.y = -0.25;
+    car.add(under);
+
+    car.position.set(0, 0, 2.5);
+
+    // ---------- Obstacles ----------
+    const obstacleMat = new THREE.MeshStandardMaterial({
+      color: 0xff3d6e, roughness: 0.35, metalness: 0.25,
+      emissive: 0x2a000f, emissiveIntensity: 0.6
+    });
+
+    function makeObstacle() {
+      const g = new THREE.Group();
+
+      // base block
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.0, 1.2), obstacleMat);
+      mesh.castShadow = true;
+      mesh.position.y = 0.2;
+      g.add(mesh);
+
+      // top detail
+      const ringMat = new THREE.MeshStandardMaterial({
+        color: 0xff7aa2, emissive: 0xff2b6b, emissiveIntensity: 0.7,
+        roughness: 0.55, metalness: 0.1
+      });
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.10, 10, 22), ringMat);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.8;
+      ring.castShadow = true;
+      g.add(ring);
+
+      // random rotation speed
+      g.userData.spin = (Math.random() * 0.8 + 0.4) * (Math.random() < 0.5 ? -1 : 1);
+
+      return g;
+    }
+
+    const obstacles = [];
+    const lanes = [-2.2, 0, 2.2]; // 3 lanes
+    const maxObstacles = 14;
+
+    // ---------- Game state ----------
+    const overlay = document.getElementById("overlay");
+    const playBtn = document.getElementById("playBtn");
+    const tiltBtn = document.getElementById("tiltBtn");
+    const scoreEl = document.getElementById("score");
+    const speedEl = document.getElementById("speed");
+    const statusEl = document.getElementById("status");
+    const bestNote = document.getElementById("bestNote");
+
+    let running = false;
+    let score = 0;
+    let best = Number(localStorage.getItem("car_dodge_best") || 0);
+    let baseSpeed = 12;      // forward speed
+    let speed = baseSpeed;
+    let difficulty = 0;      // grows over time
+    let turbo = false;
+    let turboEnergy = 1;     // 0..1
+    let lastSpawnZ = -22;
+    let steer = 0;           // -1..1
+    let laneX = 0;           // target lane center
+    let allowTilt = false;
+    let tiltX = 0;
+
+    bestNote.textContent = best ? `Melhor: ${best}` : "";
+
+    // ---------- Input ----------
+    const keys = { left:false, right:false, turbo:false };
+
+    addEventListener("keydown", (e) => {
+      if (e.code === "ArrowLeft" || e.code === "KeyA") keys.left = true;
+      if (e.code === "ArrowRight" || e.code === "KeyD") keys.right = true;
+      if (e.code === "Space") keys.turbo = true;
+      if (e.code === "Enter" && !running) startGame();
+    });
+    addEventListener("keyup", (e) => {
+      if (e.code === "ArrowLeft" || e.code === "KeyA") keys.left = false;
+      if (e.code === "ArrowRight" || e.code === "KeyD") keys.right = false;
+      if (e.code === "Space") keys.turbo = false;
+    });
+
+    // mobile buttons
+    const btnLeft = document.getElementById("btnLeft");
+    const btnRight = document.getElementById("btnRight");
+    const btnTurbo = document.getElementById("btnTurbo");
+
+    function bindHold(btn, onDown, onUp) {
+      const down = (e)=>{ e.preventDefault(); onDown(); };
+      const up = (e)=>{ e.preventDefault(); onUp(); };
+      btn.addEventListener("pointerdown", down, { passive:false });
+      btn.addEventListener("pointerup", up, { passive:false });
+      btn.addEventListener("pointercancel", up, { passive:false });
+      btn.addEventListener("pointerleave", up, { passive:false });
+    }
+    bindHold(btnLeft,  ()=> keys.left = true,  ()=> keys.left = false);
+    bindHold(btnRight, ()=> keys.right = true, ()=> keys.right = false);
+    bindHold(btnTurbo, ()=> keys.turbo = true, ()=> keys.turbo = false);
+
+    // tilt (device orientation)
+    async function requestTiltPermission() {
+      try {
+        // iOS needs permission
+        if (typeof DeviceOrientationEvent !== "undefined" &&
+            typeof DeviceOrientationEvent.requestPermission === "function") {
+          const res = await DeviceOrientationEvent.requestPermission();
+          if (res !== "granted") return false;
+        }
+        allowTilt = true;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    addEventListener("deviceorientation", (e) => {
+      if (!allowTilt) return;
+      // gamma: left-right tilt, approx -45..45
+      const g = e.gamma ?? 0;
+      tiltX = THREE.MathUtils.clamp(g / 30, -1, 1);
+    });
+
+    // ---------- Helpers ----------
+    function resetWorld() {
+      // remove obstacles
+      for (const o of obstacles) scene.remove(o);
+      obstacles.length = 0;
+
+      score = 0;
+      difficulty = 0;
+      speed = baseSpeed;
+      turbo = false;
+      turboEnergy = 1;
+      lastSpawnZ = -22;
+
+      car.position.set(0, 0, 2.5);
+      laneX = 0;
+      steer = 0;
+
+      // reset lane lights positions
+      let idx = 0;
+      for (let i = 0; i < laneLightCount; i++) {
+        laneLightMeshes[idx++].position.z = -i * laneLightZSpacing;
+        laneLightMeshes[idx++].position.z = -i * laneLightZSpacing;
+      }
+
+      // reset road pieces
+      for (let i = 0; i < roadPieces.length; i++) {
+        roadPieces[i].position.z = -i * 24;
+      }
+    }
+
+    function startGame() {
+      overlay.style.display = "none";
+      resetWorld();
+      running = true;
+      statusEl.textContent = "Correndo!";
+    }
+
+    function gameOver() {
+      running = false;
+      statusEl.textContent = "Game Over";
+      best = Math.max(best, Math.floor(score));
+      localStorage.setItem("car_dodge_best", String(best));
+      bestNote.textContent = `Melhor: ${best}`;
+
+      const card = overlay.querySelector(".card");
+      card.querySelector("h1").textContent = "Game Over!";
+      const ps = card.querySelectorAll("p");
+      ps[0].innerHTML = `Seu score: <b>${Math.floor(score)}</b> • Melhor: <b>${best}</b>`;
+      ps[1].innerHTML = `Pressione <b>Enter</b> (PC) ou toque em <b>Jogar</b> para reiniciar.`;
+
+      overlay.style.display = "flex";
+    }
+
+    function spawnObstacle(z) {
+      const o = makeObstacle();
+      // choose lane, with a small chance of 2-lane wide obstacle later
+      const lane = lanes[Math.floor(Math.random() * lanes.length)];
+      o.position.set(lane, 0, z);
+      o.userData.radius = 0.7; // collision radius approx
+      scene.add(o);
+      obstacles.push(o);
+
+      // keep under max
+      while (obstacles.length > maxObstacles) {
+        const old = obstacles.shift();
+        scene.remove(old);
+      }
+    }
+
+    function circleHit(ax, az, ar, bx, bz, br) {
+      const dx = ax - bx;
+      const dz = az - bz;
+      const rr = (ar + br);
+      return (dx*dx + dz*dz) <= rr*rr;
+    }
+
+    // ---------- UI buttons ----------
+    playBtn.addEventListener("click", startGame);
+
+    tiltBtn.addEventListener("click", async () => {
+      const ok = await requestTiltPermission();
+      tiltBtn.textContent = ok ? "Inclinar ativado ✔" : "Não deu permissão 😕";
+      if (ok) tiltBtn.classList.add("secondary");
+    });
+
+    // ---------- Resize ----------
+    addEventListener("resize", () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    // ---------- Animation loop ----------
+    let lastT = performance.now();
+
+    function tick(t) {
+      const dt = Math.min((t - lastT) / 1000, 0.033);
+      lastT = t;
+
+      // subtle camera drift
+      stars.rotation.y += dt * 0.02;
+
+      if (running) {
+        // difficulty ramps
+        difficulty += dt * 0.35; // ~20s to get noticeably harder
+        const diffSpeed = 1 + Math.min(difficulty * 0.08, 0.9);
+
+        // turbo
+        const wantsTurbo = keys.turbo;
+        if (wantsTurbo && turboEnergy > 0.05) turbo = true;
+        else turbo = false;
+
+        const turboBoost = turbo ? 1.55 : 1.0;
+        speed = baseSpeed * diffSpeed * turboBoost;
+
+        // turbo energy: drain when using, regen otherwise
+        if (turbo) turboEnergy = Math.max(0, turboEnergy - dt * 0.55);
+        else turboEnergy = Math.min(1, turboEnergy + dt * 0.25);
+
+        // steering input
+        const input = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+        const tilt = allowTilt ? tiltX : 0;
+        steer = THREE.MathUtils.clamp(input + tilt * 0.75, -1, 1);
+
+        // target lane movement (smooth)
+        laneX += steer * dt * 6.5;
+        laneX = THREE.MathUtils.clamp(laneX, -2.7, 2.7);
+
+        // smooth car x + leaning
+        car.position.x = THREE.MathUtils.lerp(car.position.x, laneX, 1 - Math.pow(0.001, dt));
+        car.rotation.z = THREE.MathUtils.lerp(car.rotation.z, -car.position.x * 0.08, 1 - Math.pow(0.001, dt));
+        car.rotation.y = THREE.MathUtils.lerp(car.rotation.y, steer * 0.06, 1 - Math.pow(0.001, dt));
+
+        // wheel spin
+        const wheelSpin = dt * speed * 0.9;
+        w1.rotation.x += wheelSpin; w2.rotation.x += wheelSpin; w3.rotation.x += wheelSpin; w4.rotation.x += wheelSpin;
+
+        // move world "towards camera": instead of moving car forward, pull obstacles/road/lights forward
+        const dz = dt * speed;
+
+        // road looping
+        for (const road of roadPieces) {
+          road.position.z += dz;
+          if (road.position.z > 18) road.position.z -= 24 * roadPieces.length;
+        }
+
+        // lane lights looping
+        for (const lm of laneLightMeshes) {
+          lm.position.z += dz;
+          if (lm.position.z > 8) lm.position.z -= laneLightZSpacing * (laneLightCount);
+        }
+
+        // obstacles move and spin
+        for (const o of obstacles) {
+          o.position.z += dz;
+          o.rotation.y += dt * o.userData.spin;
+          o.rotation.x += dt * o.userData.spin * 0.5;
+        }
+
+        // spawn new obstacles ahead
+        // ensure we keep generating beyond lastSpawnZ (more negative = further ahead)
+        // since world moves +z, we spawn at negative z
+        const spawnSpacing = THREE.MathUtils.lerp(7.8, 4.2, Math.min(difficulty / 20, 1)); // gets tighter
+        while (lastSpawnZ > -120) {
+          // keep at least some ahead at the start
+          lastSpawnZ -= spawnSpacing;
+          spawnObstacle(lastSpawnZ);
+        }
+        // push spawn horizon further as we move
+        lastSpawnZ += dz;
+        if (lastSpawnZ > -24) lastSpawnZ = -24; // keep ahead
+
+        // score
+        score += dt * (8 + speed * 0.35);
+        scoreEl.textContent = String(Math.floor(score));
+        speedEl.textContent = String(Math.floor(speed));
+        statusEl.textContent = turbo ? "TURBO!" : "Correndo!";
+
+        // collision
+        const carR = 0.75;
+        for (const o of obstacles) {
+          if (o.position.z > 5) continue; // already behind
+          const hit = circleHit(car.position.x, car.position.z, carR, o.position.x, o.position.z, o.userData.radius);
+          if (hit && o.position.z > 1.0) {
+            gameOver();
+            break;
+          }
+        }
+
+        // camera follow / shake
+        const camTargetX = car.position.x * 0.35;
+        camera.position.x = THREE.MathUtils.lerp(camera.position.x, camTargetX, 1 - Math.pow(0.001, dt));
+        camera.position.z = THREE.MathUtils.lerp(camera.position.z, 10.2 - (turbo ? 0.9 : 0), 1 - Math.pow(0.001, dt));
+        camera.lookAt(car.position.x * 0.15, 0.8, 0);
+      } else {
+        // idle rotation
+        car.rotation.y += dt * 0.25;
+        under.material.opacity = 0.25 + Math.sin(performance.now() * 0.003) * 0.05;
+        camera.lookAt(0, 0.8, 0);
+      }
+
+      // pulsing underglow based on turbo energy
+      under.scale.setScalar(1.0 + (1 - turboEnergy) * 0.15);
+      under.material.opacity = 0.28 + (turbo ? 0.18 : 0.0) + (1 - turboEnergy) * 0.06;
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
